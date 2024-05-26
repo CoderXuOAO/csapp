@@ -1,2 +1,4 @@
 csc3050-docker*/
-.vscode/
+/labs/datalab/btest
+/labs/datalab/ishow
+/labs/datalab/fshow

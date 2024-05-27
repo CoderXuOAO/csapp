@@ -217,7 +217,8 @@ int isAsciiDigit(int x) {
  *   Rating: 3
  */
 int conditional(int x, int y, int z) {
-  return 2;
+  int flag = ((!!x) << 31) >> 31; 
+  return (flag & y) | (~flag & z);
 }
 /* 
  * isLessOrEqual - if x <= y  then return 1, else return 0 
@@ -227,7 +228,13 @@ int conditional(int x, int y, int z) {
  *   Rating: 3
  */
 int isLessOrEqual(int x, int y) {
-  return 2;
+  int negy = ~y + 1;
+  int ans = x + negy;
+  int zf = !ans;
+  int sf = (ans >> 31) & 0x1;
+  int sf1 = (x >> 31) & 0x1, sf2 = (y >> 31) & 0x1;
+  int of = (sf1 & ~sf2 & ~sf) | (~sf1 & sf2 & sf);
+  return zf | (of ^ sf);
 }
 //4
 /* 
@@ -239,7 +246,10 @@ int isLessOrEqual(int x, int y) {
  *   Rating: 4 
  */
 int logicalNeg(int x) {
-  return 2;
+  int negx = ~x + 1;
+  int tmp = ~((x | negx) >> 31);
+  int negtmp = ~tmp + 1;
+  return tmp & negtmp;
 }
 /* howManyBits - return the minimum number of bits required to represent x in
  *             two's complement
@@ -254,8 +264,34 @@ int logicalNeg(int x) {
  *  Rating: 4
  */
 int howManyBits(int x) {
-  return 0;
+  int Tmin = 1 << 31;
+  int high16 = Tmin >> 15, high24 = Tmin >> 23, high28 = Tmin >> 27, high30 = Tmin >> 29, high31 = Tmin >> 30, high32 = Tmin >> 31;
+  int sf = (x >>31) & 1;
+  int sfflag = (sf << 31) >> 31;
+  int abs = (~sfflag & x) | (sfflag & (~x + 1));
+  int lowbit = abs & (~abs + 1);
+  int flag = !(lowbit ^ abs);
+  int len = 0;
+  int flag16 = ((!!(abs & high16)) << 31) >> 31;
+  abs = (flag16 & (abs >> 16)) | (~flag16 & abs);
+  len += (flag16 & 16) | (~flag16 & 0);
+  int flag8 = ((!!(abs & high24)) << 31) >> 31;
+  abs = (flag8 & (abs >> 8)) | (~flag8 & abs);
+  len += (flag8 & 8) | (~flag8 & 0);
+  int flag4 = ((!!(abs & high28)) << 31) >> 31;
+  abs = (flag4 & (abs >> 4)) | (~flag4 & abs);
+  len += (flag4 & 4) | (~flag4 & 0);
+  int flag2 = ((!!(abs & high30)) << 31) >> 31;
+  abs = (flag2 & (abs >> 2)) | (~flag2 & abs);
+  len += (flag2 & 2) | (~flag2 & 0);
+  int flag1 = ((!!(abs & high31)) << 31) >> 31;
+  abs = (flag1 & (abs >> 1)) | (~flag1 & abs);
+  len += (flag1 & 1) | (~flag1 & 0);
+  int flag0 = ((!!(abs & high32)) << 31) >> 31;
+  len += (flag0 & 1) | (~flag0 & 0);
+  return len + !(sf & flag);
 }
+
 //float
 /* 
  * floatScale2 - Return bit-level equivalent of expression 2*f for
@@ -269,7 +305,18 @@ int howManyBits(int x) {
  *   Rating: 4
  */
 unsigned floatScale2(unsigned uf) {
-  return 2;
+  unsigned sf = (uf & 0x80000000) >> 31;
+  unsigned e = (uf & 0x7f800000) >> 23;
+  unsigned tail = uf & 0x007fffff;
+  if(e == 0) {
+    if(tail == 0) return uf;
+    tail <<= 1; 
+  } else if(e == 255) {
+    return uf;
+  } else {
+    e++;
+  }
+  return (sf << 31) | (e << 23) | tail;
 }
 /* 
  * floatFloat2Int - Return bit-level equivalent of expression (int) f
@@ -284,7 +331,24 @@ unsigned floatScale2(unsigned uf) {
  *   Rating: 4
  */
 int floatFloat2Int(unsigned uf) {
-  return 2;
+  unsigned sf = (uf & 0x80000000) >> 31;
+  unsigned e = (uf & 0x7f800000) >> 23;
+  unsigned tail = uf & 0x007fffff;
+  int realE = e - 127;
+  if(realE < 0) return 0;
+  if(realE > 31) return 0x80000000u;
+  if(realE == 31 && (sf == 0 || tail != 0)) return 0x80000000u;
+  int ret = tail + 0x00800000u, remain = realE - 23;
+  if(remain >= 0) {
+    for(; remain > 0; remain--) {
+      ret <<= 1;
+    }
+  } else {
+    for(; remain < 0; remain++) {
+      ret >>= 1;
+    }
+  }
+  return sf ? (~ret + 1) : ret;
 }
 /* 
  * floatPower2 - Return bit-level equivalent of the expression 2.0^x
